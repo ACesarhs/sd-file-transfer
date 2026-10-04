@@ -4,11 +4,11 @@ import sys
 import time
 
 CHUNK = 1024 * 1024
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 
 
 def _try_download(host, port):
-    with socket.create_connection((host, port), timeout=10) as s:
+    with socket.create_connection((host, port), timeout=15) as s:
         s.sendall(b"G")
         raw = b""
         while len(raw) < 8:
@@ -26,6 +26,7 @@ def _try_download(host, port):
 
 def download(host, port):
     last_err = None
+    delay = 0.5
     for attempt in range(1, MAX_RETRIES + 1):
         start = time.perf_counter()
         try:
@@ -34,7 +35,8 @@ def download(host, port):
             return elapsed, size
         except (ConnectionResetError, ConnectionError, OSError) as e:
             last_err = e
-            time.sleep(0.3)
+            time.sleep(delay)
+            delay *= 2  # backoff exponencial
     raise last_err
 
 

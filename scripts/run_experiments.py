@@ -2,6 +2,7 @@
 import csv
 import os
 import socket
+import struct
 import subprocess
 import sys
 import threading
@@ -29,14 +30,27 @@ CLIENT_P2P = "client/p2p_fetch.py"
 
 
 def wait_port(host, port, timeout=10):
-    """Espera a porta TCP aceitar conexao (servidor pronto)."""
+    """Espera a porta TCP aceitar conexao SEM criar conexao real no servidor."""
     deadline = time.time() + timeout
     while time.time() < deadline:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
         try:
-            with socket.create_connection((host, port), timeout=0.5):
+            rc = s.connect_ex((host, port))
+            if rc == 0:
+                # fecha com RST para nao deixar conexao pendurada no servidor
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                             struct.pack("ii", 1, 0))
+                s.close()
                 return True
         except OSError:
-            time.sleep(0.1)
+            pass
+        finally:
+            try:
+                s.close()
+            except Exception:
+                pass
+        time.sleep(0.1)
     return False
 
 
@@ -85,34 +99,43 @@ def run_client(arch, size, results, idx):
 
 
 def run_combination(arch, size, n_clients):
-    """Roda N clientes em paralelo, REPEATS vezes, retorna lista de tempos."""
+    """Roda N clientes em paralelo, REPEATS vezes. Refaz combo se incompleto."""
+    expected = n_clients * REPS
     all_times = []
-    for rep in range(REPS):
-        proc, log = None, None
-        try:
-            proc, log = start_server(arch, size)
-            time.sleep(0.5)
 
-            results = [None] * n_clients
-            threads = []
-            for i in range(n_clients):
-                t = threading.Thread(target=run_client, args=(arch, size, results, i))
-                t.start()
-                threads.append(t)
-            for t in threads:
-                t.join()
+    for attempt in range(3):  # ate 3 tentativas de combo completo
+        all_times = []
+        for rep in range(REPS):
+            proc, log = None, None
+            try:
+                proc, log = start_server(arch, size)
+                time.sleep(0.5)
 
-            times = [r for r in results if r is not None]
-            all_times.extend(times)
-            print(f"  rep {rep+1}/{REPS}: {len(times)}/{n_clients} OK "
-                  f"tempos={[f'{t:.3f}' for t in times]}", flush=True)
-        finally:
-            if proc is not None:
-                proc.kill()
-                proc.wait()
-            if log is not None:
-                log.close()
-            time.sleep(0.5)
+                results = [None] * n_clients
+                threads = []
+                for i in range(n_clients):
+                    t = threading.Thread(target=run_client, args=(arch, size, results, i))
+                    t.start()
+                    threads.append(t)
+                for t in threads:
+                    t.join()
+
+                times = [r for r in results if r is not None]
+                all_times.extend(times)
+                print(f"  rep {rep+1}/{REPS}: {len(times)}/{n_clients} OK "
+                      f"tempos={[f'{t:.3f}' for t in times]}", flush=True)
+            finally:
+                if proc is not None:
+                    proc.kill()
+                    proc.wait()
+                if log is not None:
+                    log.close()
+                time.sleep(0.5)
+
+        if len(all_times) >= expected:
+            return all_times
+        print(f"  combo incompleto ({len(all_times)}/{expected}), "
+              f"tentando de novo (tentativa {attempt+2}/3)...", flush=True)
 
     return all_times
 
