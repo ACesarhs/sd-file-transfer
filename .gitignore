@@ -5,3 +5,4 @@ venv/
 data/*.bin
 results/*.csv
 !results/.gitkeep
+*.save
