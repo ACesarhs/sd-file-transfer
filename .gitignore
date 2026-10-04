@@ -6,3 +6,4 @@ data/*.bin
 results/*.csv
 !results/.gitkeep
 *.save
+results/*.log

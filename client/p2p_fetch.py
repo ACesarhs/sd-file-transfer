@@ -6,7 +6,7 @@ import time
 TOKEN = "sd-experiment-2026"
 
 
-def fetch(timeout=30):
+def fetch(timeout=60):
     ofn.token = TOKEN
     start = time.perf_counter()
 
