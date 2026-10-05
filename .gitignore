@@ -3,7 +3,8 @@ __pycache__/
 .venv/
 venv/
 data/*.bin
-results/*.csv
-!results/.gitkeep
-*.save
 results/*.log
+!results/.gitkeep
+!results/resultados.csv
+*.save
+results/*.txt
