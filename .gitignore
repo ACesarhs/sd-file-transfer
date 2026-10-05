@@ -8,3 +8,4 @@ results/*.log
 !results/resultados.csv
 *.save
 results/*.txt
+results/*.bak.*

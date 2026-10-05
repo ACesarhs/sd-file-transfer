@@ -14,9 +14,9 @@ RESULTS_DIR = ROOT / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 CSV_PATH = RESULTS_DIR / "resultados.csv"
 
-SIZES = [5, 50, 500]
-CLIENTS = [1, 2, 5, 10]
-REPS = 3
+SIZES = [5, 50]
+CLIENTS = [1, 2, 5]
+REPS = 2
 
 ARCHS = {
     "cs_single":   {"script": "server/cs_single.py",   "port": 5000, "kind": "cs"},
@@ -155,11 +155,20 @@ def write_row(arch, size, n_clients, times):
 
 
 def main():
-    if not CSV_PATH.exists():
-        with open(CSV_PATH, "w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["arquitetura", "tamanho_mb", "n_clientes",
-                        "min_s", "medio_s", "max_s", "n_amostras"])
+    # Backup do CSV existente, se houver dados
+    if CSV_PATH.exists():
+        import shutil
+        from datetime import datetime
+        backup = CSV_PATH.with_suffix(
+            f".csv.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        shutil.copy(CSV_PATH, backup)
+        print(f"Backup do CSV anterior: {backup}")
+
+    # Recria o CSV do zero (header)
+    with open(CSV_PATH, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["arquitetura", "tamanho_mb", "n_clientes",
+                    "min_s", "medio_s", "max_s", "n_amostras"])
 
     total = len(ARCHS) * len(SIZES) * len(CLIENTS)
     done = 0
